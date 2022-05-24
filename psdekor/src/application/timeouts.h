@@ -16,7 +16,7 @@
 #define TIMEOUT_RTC_LOCK_OPEN_WAIT_TIME         3
 #define TIMEOUT_RTC_REPEATING_ALARM             1
 #define TIMEOUT_RTC_FIRST_ALARM                20
-#define TIMEOUT_RTC_SWITCH_TO_PROG2             9
+#define TIMEOUT_RTC_SWITCH_TO_PROG2             1
 
 
 #endif /* TIMEOUTS_H_ */

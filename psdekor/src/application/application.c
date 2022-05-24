@@ -429,7 +429,7 @@ void MainStateMachine (void)
 		preprocess_door_intr();
 		DLOG("SLEEP\r\n");
 		if ((learn == 0) && (door_changed == 0) && (rtc_intr == 0) &&
-		    (wcap_intr == 0) && (!rtcPollInterrupt_LOCKED())) {
+			(wcap_intr == 0) && (!rtcPollInterrupt_LOCKED())) {
 			SoftwareSleep ();
 
 			//mu 08.10.2017
@@ -513,62 +513,79 @@ void MainStateMachine (void)
 		scan_result.found_card_counter = 0;
 		err = RfidStartScan (RFID_UNIT_1, 0, IdentifyCardCallback);
 		if (scan_result.found_card_counter == 1) {
-			buzzerStop ();
-			rtcStop ();
-			
 			if (scan_result.type == CARD_TYPE_GYM_SOFTWARD_CARD) {
-				
 				DLOG("GYM mode card NO-AUTO\r\n");
+
+				////////////////////////
+				val = rtcXSecondsPassed(10) ? 1 : 0;
+				if (val) { /* Wait 2 seconds before changing state... */
+					buzzerStop();
+					rtcStop ();
+					DLOG("Delete all keys!\r\n");
+					cardmanDeleteAllKeys ();
+					buzzerStart(SignalAllDeleted, false);
+					buzzerWaitTillFinished ();
+					delayNMilliSeconds(200);
+					SoftwareStateMachine(SW_TRIGGER_CHANGE_NCARDS);
+				}
+				////////////////////////
 				cardmanSetSoftwareFunctionOpenDelay(SW_FUNCTION_GYM, 0);
 				buzzerStart(SignalAllDeleted, false);
 				buzzerWaitTillFinished();
 				CCP = CCP_IOREG_gc;
 				RST.CTRL =  RST_SWRST_bm;
 				for(;;);
-			} else if (scan_result.type == CARD_TYPE_GYM_SOFTWARD_CARD_6) {
+			} else {
+				buzzerStop ();
+				rtcStop ();
 				
-				DLOG("GYM mode card 6 hours\r\n");
-				cardmanSetSoftwareFunctionOpenDelay(SW_FUNCTION_GYM, 6);
-				buzzerStart(SignalAllDeleted, false);
-				buzzerWaitTillFinished();
-				CCP = CCP_IOREG_gc;
-				RST.CTRL =  RST_SWRST_bm;
-				for(;;);
-			} else if (scan_result.type == CARD_TYPE_GYM_SOFTWARD_CARD_12) {
+				if (scan_result.type == CARD_TYPE_GYM_SOFTWARD_CARD) {
+					
+				} else if (scan_result.type == CARD_TYPE_GYM_SOFTWARD_CARD_6) {
+					
+					DLOG("GYM mode card 6 hours\r\n");
+					cardmanSetSoftwareFunctionOpenDelay(SW_FUNCTION_GYM, 6);
+					buzzerStart(SignalAllDeleted, false);
+					buzzerWaitTillFinished();
+					CCP = CCP_IOREG_gc;
+					RST.CTRL =  RST_SWRST_bm;
+					for(;;);
+				} else if (scan_result.type == CARD_TYPE_GYM_SOFTWARD_CARD_12) {
+					
+					DLOG("GYM mode card 12 hours\r\n");
+					cardmanSetSoftwareFunctionOpenDelay(SW_FUNCTION_GYM, 12);
+					buzzerStart(SignalAllDeleted, false);
+					buzzerWaitTillFinished();
+					CCP = CCP_IOREG_gc;
+					RST.CTRL =  RST_SWRST_bm;
+					for(;;);
+				} else if (scan_result.type == CARD_TYPE_GYM_SOFTWARD_CARD_24) {
 				
-				DLOG("GYM mode card 12 hours\r\n");
-				cardmanSetSoftwareFunctionOpenDelay(SW_FUNCTION_GYM, 12);
-				buzzerStart(SignalAllDeleted, false);
-				buzzerWaitTillFinished();
-				CCP = CCP_IOREG_gc;
-				RST.CTRL =  RST_SWRST_bm;
-				for(;;);
-			} else if (scan_result.type == CARD_TYPE_GYM_SOFTWARD_CARD_24) {
-			
-				DLOG("GYM mode card 24 hours\r\n");
-				cardmanSetSoftwareFunctionOpenDelay(SW_FUNCTION_GYM, 24);
-				buzzerStart(SignalAllDeleted, false);
-				buzzerWaitTillFinished();
-				CCP = CCP_IOREG_gc;
-				RST.CTRL =  RST_SWRST_bm;
-				for(;;);
+					DLOG("GYM mode card 24 hours\r\n");
+					cardmanSetSoftwareFunctionOpenDelay(SW_FUNCTION_GYM, 24);
+					buzzerStart(SignalAllDeleted, false);
+					buzzerWaitTillFinished();
+					CCP = CCP_IOREG_gc;
+					RST.CTRL =  RST_SWRST_bm;
+					for(;;);
 
+					
+				} else  {
 				
-			} else  {
-			
-				err = cardmanSetProgrammingCard (scan_result.card.uid, scan_result.card.len);
-				if (err) {
-					DLOG("Couldn't set Programming card [err: %hhd]\r\n", err);
-					delayNMilliSeconds (500);
-					MAIN_STATE_TRANSITION(MSTATE_ERROR_SET_PROG_CARD_FAILED);
-				} else {
-					DLOG("Programming card has been set!\r\n");
-					delayNMilliSeconds (500);
-					buzzerStart (SignalPositive, false);
-					buzzerWaitTillFinished ();
-					MAIN_STATE_TRANSITION(MSTATE_EXIT_PROG_OR_LEARN_MODE);
+					err = cardmanSetProgrammingCard (scan_result.card.uid, scan_result.card.len);
+					if (err) {
+						DLOG("Couldn't set Programming card [err: %hhd]\r\n", err);
+						delayNMilliSeconds (500);
+						MAIN_STATE_TRANSITION(MSTATE_ERROR_SET_PROG_CARD_FAILED);
+					} else {
+						DLOG("Programming card has been set!\r\n");
+						delayNMilliSeconds (500);
+						buzzerStart (SignalPositive, false);
+						buzzerWaitTillFinished ();
+						MAIN_STATE_TRANSITION(MSTATE_EXIT_PROG_OR_LEARN_MODE);
+					}
+				
 				}
-			
 			}
 		}
 		break;
@@ -753,13 +770,13 @@ void MainStateMachine (void)
 			switch (scan_result.type) {
 			case CARD_TYPE_PROGRAMMING_CARD:
 				if (rtcIsFinished ()) {
-					buzzerStop();
-					DLOG("Delete all keys!\r\n");
-					cardmanDeleteAllKeys ();
-					buzzerStart (SignalAllDeleted, false);
-					buzzerWaitTillFinished ();
-					delayNMilliSeconds(200);
-					SoftwareStateMachine(SW_TRIGGER_CHANGE_NCARDS);
+					// buzzerStop();
+					// DLOG("Delete all keys!\r\n");
+					// cardmanDeleteAllKeys ();
+					// buzzerStart (SignalAllDeleted, false);
+					// buzzerWaitTillFinished ();
+					// delayNMilliSeconds(200);
+					// SoftwareStateMachine(SW_TRIGGER_CHANGE_NCARDS);
 					MAIN_STATE_TRANSITION(MSTATE_EXIT_PROG_OR_LEARN_MODE);
 				}
 				break;
