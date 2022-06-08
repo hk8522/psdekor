@@ -324,7 +324,7 @@ void MainStateMachine (void)
 {
 	static u32 woke_counter = U32_C(0);
 	s8 err;
-	u8 val;
+	u8 val, val1;
 	u32 ret;
 
 	u8 sw = cardmanGetSoftwareFunction();
@@ -710,10 +710,21 @@ void MainStateMachine (void)
 
 			switch (scan_result.type) {
 			case CARD_TYPE_PROGRAMMING_CARD:
-				if (val) { /* Wait 2 seconds before changing state... */
+                val1 = rtcXSecondsPassed(10) ? 1 : 0;
+				if (val1) { /* Wait 10 seconds before delete... */
+					buzzerStop();
 					rtcStop ();
-					MAIN_STATE_TRANSITION(MSTATE_ENTER_PROGRAMMING_MODE_2);
+					DLOG("Delete all keys!\r\n");
+					cardmanDeleteAllKeys ();
+					buzzerStart(SignalAllDeleted, false);
+					buzzerWaitTillFinished ();
+					delayNMilliSeconds(200);
+					SoftwareStateMachine(SW_TRIGGER_CHANGE_NCARDS);
 				}
+				// if (val) { /* Wait 2 seconds before changing state... */
+				// 	rtcStop ();
+				// 	MAIN_STATE_TRANSITION(MSTATE_ENTER_PROGRAMMING_MODE_2);
+				// }
 				break;
 
 			case CARD_TYPE_KEY:
@@ -770,13 +781,13 @@ void MainStateMachine (void)
 			switch (scan_result.type) {
 			case CARD_TYPE_PROGRAMMING_CARD:
 				if (rtcIsFinished ()) {
-					// buzzerStop();
+					buzzerStop();
 					// DLOG("Delete all keys!\r\n");
 					// cardmanDeleteAllKeys ();
 					// buzzerStart (SignalAllDeleted, false);
 					// buzzerWaitTillFinished ();
-					// delayNMilliSeconds(200);
-					// SoftwareStateMachine(SW_TRIGGER_CHANGE_NCARDS);
+					delayNMilliSeconds(200);
+					SoftwareStateMachine(SW_TRIGGER_CHANGE_NCARDS);
 					MAIN_STATE_TRANSITION(MSTATE_EXIT_PROG_OR_LEARN_MODE);
 				}
 				break;
